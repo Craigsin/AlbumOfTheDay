@@ -20,6 +20,11 @@ router.get('/newalbum', function(req, res, next) {
   res.render('newalbum', { title: 'Add New Album' });
 });
 
+/* GET New Album page */
+router.get('/newalbumform', function(req, res, next) {
+  res.render('newalbumform', { title: 'Add New Album' });
+});
+
 /* POST to Add Album Service */
 router.post('/addalbum', function(req, res)
 {
