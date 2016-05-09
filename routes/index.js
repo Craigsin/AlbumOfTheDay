@@ -25,6 +25,37 @@ router.get('/newalbumform', function(req, res, next) {
   res.render('newalbumform', { title: 'Add New Album' });
 });
 
+var Gracenote = require("node-gracenote");
+var clientId = "347978252-3D569FC495267E0B0972359FD44CBFAA";
+
+var Gracenote = require("node-gracenote");
+var clientTag = "GreatListens";
+var userId = null;
+var api = new Gracenote(clientId,clientTag,userId);
+api.register(function(err, uid) {
+    userId = uid;
+    console.log("UID " + uid );
+});
+
+
+router.get('/searching', function(req, res){
+  console.log("searching res");
+  
+var api = new Gracenote(clientId,clientTag,userId);
+var album_Artist          = req.body.Artist;
+var album_Album           = req.body.Album;
+api.searchAlbum(album_Artist, album_Album, function(err, result) {
+    console.log( result[0] );
+    res.send(result[0]);
+});  
+  
+  
+  
+  
+});
+
+// see the following for details on tweeting the new album.
+// https://www.npmjs.com/package/twitter
 /* POST to Add Album Service */
 router.post('/addalbum', function(req, res)
 {
