@@ -2,7 +2,8 @@ $(function(){
 
     $('#inputTracks').on('keyup', function(e){
       if(e.keyCode === 9) {
-        var parameters = { search: $(this).val() };
+        var parameters = { title: $("#inputTitle").val(), 
+                          artist: $("#inputArtist").val() };
           $.get( '/searching',parameters, function(data) {
           //console.log(data)
           //console.log( data.tracks )

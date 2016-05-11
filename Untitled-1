@@ -7,13 +7,11 @@ var cookieParser = require('cookie-parser');
 var SpotifyWebApi = require('spotify-web-api-node');
 
 // credentials are optional
-/*
 var spotifyApi = new SpotifyWebApi({
   clientId : '9d278bfaff2f4444af5b9ab67d5a0fd2',
   clientSecret : '5de0bf8d71344d468c0d9f0432ad0478',
   redirectUri : 'http://localhost/callback'
 });
-*/
 
 
 var scopes = ['user-read-private', 'user-read-email'],
@@ -32,63 +30,44 @@ var authorizeURL = spotifyApi.createAuthorizeURL(scopes, state);
 
 console.log(authorizeURL);
 
-var g_code = ""
-/* Handle authorization callback from Spotify */
-router.get('/callback', function(req, res) {
-  console.log(" Arrived in callback ")
-  /* Read query parameters */
-  var code  = req.query.code; // Read the authorization code from the query parameters
-  var state = req.query.state; // (Optional) Read the state from the query parameter
-  
-  g_code = code;
-  /* Get the access token! */
-  console.log( req.query )
-  /*
-  spotifyApi.authorizationCodeGrant(code)
-    .then(function(data) {
-      console.log('The token expires in ' + data['expires_in']);
-      console.log('The access token is ' + data['access_token']);
-      console.log('The refresh token is ' + data['refresh_token']);
-
-      /* Ok. We've got the access token!
-         Save the access token for this user somewhere so that you can use it again.
-         Cookie? Local storage?
-      *  /
-
-      /* Redirecting back to the main page! :-) *  /
-      res.redirect('/');
-
-    })  
-    */
-    // spotifyApi.setAccessToken( code );
-    
-    // need to convert code to a token here.
-
-
-    res.redirect('/');
-})
 
 
 /* GET home page. */
 router.get('/', function(req, res, next) {
-  res.render('index', { title: 'Album of the Day', spotify: authorizeURL });
+  res.redirect(authorizeURL);
+  res.render('index', { title: 'Album of the Day' });
 });
 
 /* GET Albumlist page */
 router.get('/albumlist', function(req, res, next) {
   var db = req.db;
-  
-  spotifyApi.searchArtists('Love')
+  /*
+  spotifyApi.searchArtists('A Secret Wish')
   .then(function(data) {
     console.log('Search artists by "Love"', data.body);
   }, function(err) {
     console.error(err);
   });
+  
+  
+  spotifyApi.getUser('craigsin')
+  .then(function(data) {
+    console.log('Some information about this user', data.body);
+  }, function(err) {
+    console.log('Something went wrong!', err);
+  });
+  
+  // Get the authenticated user
+  spotifyApi.getMe()
+  .then(function(data) {
+    console.log('Some information about the authenticated user', data.body);
+  }, function(err) {
+    console.log('Something went wrong!', err);
+  });
 
+  */
   
-  
-  
-  var collection = db.get('AlbumsV4Plus');
+  var collection = db.get('AlbumsV2');
   collection.find({},{},function(e,docs) {
     res.render('albumlist', {"albumlist":docs});
   });
@@ -100,38 +79,11 @@ router.get('/newalbum', function(req, res, next) {
 });
 
 
-var stateKey = 'spotify_auth_state';
-router.get('/login', function(req, res) {
-
-  var state = "state is here" // generateRandomString(16);
-  res.cookie(stateKey, state);
-
-  // your application requests authorization
-  var scope = 'user-read-private user-read-email';
-  res.redirect('https://accounts.spotify.com/authorize?' +
-    querystring.stringify({
-      response_type: 'code',
-      client_id: "9d278bfaff2f4444af5b9ab67d5a0fd2",
-      scope: scope,
-      redirect_uri: "http://localhost:3000/callback",
-      state: state
-    }));
-});
-
-
 
 
 
 /* GET New Album page */
 router.get('/newalbumform', function(req, res, next) {
-  
-  spotifyApi.getMe()
-  .then(function(data) {
-    console.log('Some information about the authenticated user', data.body);
-  }, function(err) {
-    console.log('Something went wrong!', err);
-  });  
-  
   res.render('newalbumform', { title: 'Add New Album' });
   
 });
@@ -223,3 +175,74 @@ router.post('/addalbum', function(req, res)
 });
 
 module.exports = router;
+
+
+
+
+router.get('/callback', function(req, res) {
+
+  // your application requests refresh and access tokens
+  // after checking the state parameter
+
+  var code = req.query.code || null;
+  var state = req.query.state || null;
+  var storedState = req.cookies ? req.cookies[stateKey] : null;
+
+  if (state === null || state !== storedState) {
+    res.redirect('/#' +
+      querystring.stringify({
+        error: 'state_mismatch'
+      }));
+  } else {
+    res.clearCookie(stateKey);
+    var authOptions = {
+      url: 'https://accounts.spotify.com/api/token',
+      form: {
+        code: code,
+        redirect_uri: "http://localhost:3000/callback",
+        grant_type: 'authorization_code'
+      },
+      headers: {
+        'Authorization': 'Basic ' + (new Buffer("9d278bfaff2f4444af5b9ab67d5a0fd2" + ':' + "5de0bf8d71344d468c0d9f0432ad0478").toString('base64'))
+      },
+      json: true
+    };
+
+    request.post(authOptions, function(error, response, body) {
+      if (!error && response.statusCode === 200) {
+
+        var access_token = body.access_token,
+            refresh_token = body.refresh_token;
+
+        var options = {
+          url: 'https://api.spotify.com/v1/me',
+          headers: { 'Authorization': 'Bearer ' + access_token },
+          json: true
+        };
+
+        // use the access token to access the Spotify Web API
+        request.get(options, function(error, response, body) {
+          console.log(body);
+        });
+
+        // we can also pass the token to the browser to make requests from there
+        res.redirect('/#' +
+          querystring.stringify({
+            access_token: access_token,
+            refresh_token: refresh_token
+          }));
+      } else {
+        res.redirect('/#' +
+          querystring.stringify({
+            error: 'invalid_token'
+          }));
+      }
+    });
+  }
+  
+  doSearch("Automatic", function(result) {
+				console.log('got word result', result);
+			});
+});
+
+

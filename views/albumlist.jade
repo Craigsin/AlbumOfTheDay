@@ -6,12 +6,14 @@ block content
       h1 Albums of the Day
       table.table.table-striped
         thead
+          th artwork
           th No
           th Date   
           th RecommendedBy
           th Genre
           th Artist
           th Album
+
           //th(style='width:100px') RecommendedBy
           //th(style='width:50px')  Genre
           //th(style='width:400px') Artist
@@ -19,12 +21,18 @@ block content
         tbody
           each album, i in albumlist
             tr
+              td
+                if album.cover_art
+                  img(src="#{album.cover_art}" height="84" width="84")
+                else
+                  p no art
               td= album.Order
               td= album.DateRecommended
               td= album.RecommendedBy
               td= album.Genre
               td= album.Artist
               td= album.Title
+
 
 //    .col-lg-6
 //      .panel.panel-default
